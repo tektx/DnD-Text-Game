@@ -5,28 +5,24 @@
 __author__ = "tektx"
 
 import pymysql
-import random
+from collections import OrderedDict
 
 db_conn = pymysql.connect(user='root', password='password', database='dnd')
 cursor = db_conn.cursor()
 
 
-def new_game_ability_scores(mode, points, ability_str, ability_dex, ability_con, ability_wis, ability_int, ability_cha):
+def new_game_ability_scores(mode, points, **abilities):
     print("Ability scores")
-    print("STR: " + ability_str)
-    print("DEX: " + ability_dex)
-    print("CON: " + ability_con)
-    print("WIS: " + ability_wis)
-    print("INT: " + ability_int)
-    print("CHA: " + ability_cha)
-    print("---------")
-    print("Points remaining: " + points)
+    for ability in abilities:
+        print(str(ability) + ": " + str(abilities[ability]))
+    print("----------")
+    print("Points remaining: " + str(points))
 
 
 def new_game_info():
     ability_points = 20
-    ability_scores = {'Strength': 10, 'Dexterity': 10, 'Constitution': 10,
-                      'Wisdom': 10, 'Intelligence': 10, 'Charisma': 10}
+    ability_scores = ([('STR', 10), ('DEX', 10), ('CON', 10),
+                       ('WIS', 10), ('INT', 10), ('CHA', 10)])
     list_races = ['Human', 'Halfling', 'Dwarf', 'High Elf', 'Half-orc', 'Half-elf', 'Gnome']
     list_classes = ['Barbarian', 'Bard', 'Cleric', 'Druid', 'Fighter', 'Monk', 'Paladin', 'Ranger', 'Rogue',
                     'Sorcerer', 'Wizard']
@@ -62,7 +58,7 @@ def new_game_info():
     confirm = input("Is this correct? y/n\n? ")
 
     # Allocate ability points
-    new_game_ability_scores("add", ability_points, **ability_scores)
+    new_game_ability_scores("add", ability_points, ability_scores)
 
     # End new game creation
     if confirm == "n":
