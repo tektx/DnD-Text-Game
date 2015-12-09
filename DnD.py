@@ -5,63 +5,153 @@
 __author__ = "tektx"
 
 import pymysql
+import math
 from collections import OrderedDict
 
 db_conn = pymysql.connect(user='root', password='password', database='dnd')
 cursor = db_conn.cursor()
 
 
-def new_game_ability_scores(mode, points, **abilities):
-    print("Ability scores")
-    for ability in abilities:
-        print(str(ability) + ": " + str(abilities[ability]))
-    print("----------")
-    print("Points remaining: " + str(points))
-
-
-def new_game_info():
-    ability_points = 20
-    ability_scores = ([('STR', 10), ('DEX', 10), ('CON', 10),
-                       ('WIS', 10), ('INT', 10), ('CHA', 10)])
-    list_races = ['Human', 'Halfling', 'Dwarf', 'High Elf', 'Half-orc', 'Half-elf', 'Gnome']
-    list_classes = ['Barbarian', 'Bard', 'Cleric', 'Druid', 'Fighter', 'Monk', 'Paladin', 'Ranger', 'Rogue',
-                    'Sorcerer', 'Wizard']
-    list_alignments = ['Lawful Good', 'Neutral Good', 'Chaotic Good',
-                       'Lawful Neutral', 'True Neutral', 'Chaotic Neutral',
-                       'Lawful Evil', 'Neutral Evil', 'Chaotic Evil']
-    player_name = input("Name: ")
-
-    # Loop through the available races
+def new_game_ability_scores(mode, points, abilities):
+    max_score = 18
+    min_score = 3
     count = 0
+    cost = 1
+    ability_dict = {}
+    modifier_dict = {}
+    print("\nAbility scores")
+    for ability in abilities:
+        # Calculate the modifier
+        modifier = math.floor((abilities[ability] - 10) / 2)
+        print(str(count) + ") " + str(ability) + ": " + str(abilities[ability]) + " (" + str(modifier) + ")")
+        ability_dict[count] = str(ability)
+        count += 1
+
+    print("Points remaining: " + str(points))
+    print("Type + or - to switch to 'Add' or 'Subtract' mode respectively")
+    print("Type a number to modify that ability score")
+    print("Type 'done' to exit screen")
+    print("Current mode is '" + mode + "'")
+    choice = input("? ")
+
+    if choice == "-":
+        new_game_ability_scores("subtract", points, abilities)
+    elif choice == "+":
+        new_game_ability_scores("add", points, abilities)
+    elif choice == "done":
+        return abilities
+    # TODO: Confirm the value can be an int before converting it to one (try/catch?)
+    elif int(choice) < len(abilities):
+        # Add points
+        if mode == "add":
+            if points > 0:
+                if abilities[str(ability_dict[int(choice)])] < max_score:
+                    abilities[str(ability_dict[int(choice)])] += 1
+                    points -= cost
+                    new_game_ability_scores(mode, points, abilities)
+                else:
+                    print("\n! - Ability score can't exceed " + str(max_score))
+                    new_game_ability_scores(mode, points, abilities)
+            else:
+                print("\n! - No points remaining to be allocated")
+                new_game_ability_scores(mode, points, abilities)
+        # Remove points
+        elif mode == "subtract":
+            if abilities[str(ability_dict[int(choice)])] > min_score:
+                abilities[str(ability_dict[int(choice)])] -= 1
+                points += cost
+                new_game_ability_scores(mode, points, abilities)
+            else:
+                print("\n! - Ability score can't be lower than " + str(min_score))
+                new_game_ability_scores(mode, points, abilities)
+        else:
+            new_game_ability_scores("add", points, abilities)
+    # Finished allocating points
+    else:
+        print("\n! - Invalid choice")
+        new_game_ability_scores(mode, points, abilities)
+
+
+def new_game_race():
+    count = 0
+    list_races = ['Human', 'Halfling', 'Dwarf', 'High Elf', 'Half-orc', 'Half-elf', 'Gnome']
+
+    print("\nChoose your race")
     for choice in list_races:
         print(str(count) + ": " + choice)
         count += 1
-    player_race = list_races[int(input("Race: "))]
 
-    # Loop through the available classes
+    choice = int(input("Race: "))
+    if choice < len(list_races):
+        return list_races[choice]
+    else:
+        print("\n! - Invalid choice")
+        new_game_race()
+
+
+def new_game_class():
     count = 0
+    list_classes = ['Barbarian', 'Bard', 'Cleric', 'Druid', 'Fighter', 'Monk', 'Paladin', 'Ranger', 'Rogue',
+                    'Sorcerer', 'Wizard']
+
+    print("\nChoose your class")
     for choice in list_classes:
         print(str(count) + ": " + choice)
         count += 1
-    player_class = list_classes[int(input("Class: "))]
 
-    # Loop through the available alignments
+    choice = int(input("Class: "))
+    if choice < len(list_classes):
+        return list_classes[choice]
+    else:
+        print("\n! - Invalid choice")
+        new_game_class()
+
+
+def new_game_alignment():
     count = 0
+    list_alignments = ['Lawful Good', 'Neutral Good', 'Chaotic Good',
+                       'Lawful Neutral', 'True Neutral', 'Chaotic Neutral',
+                       'Lawful Evil', 'Neutral Evil', 'Chaotic Evil']
+
+    print("\nChoose your alignment")
     for choice in list_alignments:
         print(str(count) + ": " + choice)
         count += 1
-    player_alignment = list_alignments[int(input("Alignment: "))]
-    print("Name: " + player_name)
+
+    choice = int(input("Alignment: "))
+    if choice < len(list_alignments):
+        return list_alignments[choice]
+    else:
+        print("\n! - Invalid choice")
+        new_game_alignment()
+
+
+def new_game_info():
+    ability_points = 22
+    ability_scores = OrderedDict()
+    ability_scores['STR'] = 10
+    ability_scores['DEX'] = 10
+    ability_scores['CON'] = 10
+    ability_scores['WIS'] = 10
+    ability_scores['INT'] = 10
+    ability_scores['CHA'] = 10
+
+    # Create the character
+    player_name = input("Choose your name: ")
+    player_race = new_game_race()
+    player_class = new_game_class()
+    player_alignment = new_game_alignment()
+    player_ability_scores = new_game_ability_scores("add", ability_points, ability_scores)
+
+    # Confirm entries
+    print("\nName: " + player_name)
     print("Race: " + player_race)
     print("Class: " + player_class)
     print("Alignment: " + player_alignment)
     confirm = input("Is this correct? y/n\n? ")
 
-    # Allocate ability points
-    new_game_ability_scores("add", ability_points, ability_scores)
-
     # End new game creation
-    if confirm == "n":
+    if confirm == "n" or confirm == "no":
         new_game_info()
     else:
         cursor.execute("INSERT INTO player (name, race, class, alignment, level) VALUES ('" + player_name + "', '" +
@@ -70,7 +160,7 @@ def new_game_info():
 
 
 def new_game():
-    print("Starting new game...")
+    print("\nStarting new game...")
     cursor.execute("SHOW TABLES LIKE 'player';")
     if cursor.fetchone():
         cursor.execute("DROP TABLE player;")
@@ -101,6 +191,7 @@ def show_menu():
         else:
             show_menu()
     else:
+        print("\n! - Invalid choice")
         show_menu()
 
 
