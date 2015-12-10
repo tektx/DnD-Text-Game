@@ -12,11 +12,10 @@ db_conn = pymysql.connect(user='root', password='password', database='dnd')
 cursor = db_conn.cursor()
 
 
-def new_game_ability_scores(mode, points, abilities):
+def new_game_ability_scores(name, mode, points, abilities):
     max_score = 18
     min_score = 3
     count = 0
-    cost = 1
     ability_dict = {}
     modifier_dict = {}
     print("\nAbility scores")
@@ -24,6 +23,13 @@ def new_game_ability_scores(mode, points, abilities):
         # Calculate the modifier
         modifier = math.floor((abilities[ability] - 10) / 2)
         print(str(count) + ") " + str(ability) + ": " + str(abilities[ability]) + " (" + str(modifier) + ")")
+
+        # Calculate the cost of raising/lowering ability score
+        if mode == "add":
+            modifier_dict[count] = 1 if abilities[ability] < 13 else math.floor((abilities[ability] - 11) / 2) + 1
+        else:
+            modifier_dict[count] = 1 if abilities[ability] < 13 else math.floor((abilities[ability] - 12) / 2) + 1
+
         ability_dict[count] = str(ability)
         count += 1
 
@@ -35,41 +41,54 @@ def new_game_ability_scores(mode, points, abilities):
     choice = input("? ")
 
     if choice == "-":
-        new_game_ability_scores("subtract", points, abilities)
+        new_game_ability_scores(name, "subtract", points, abilities)
     elif choice == "+":
-        new_game_ability_scores("add", points, abilities)
+        new_game_ability_scores(name, "add", points, abilities)
+
+    # Insert the ability scores
     elif choice == "done":
-        return abilities
-    # TODO: Confirm the value can be an int before converting it to one (try/catch?)
-    elif int(choice) < len(abilities):
-        # Add points
-        if mode == "add":
-            if points > 0:
-                if abilities[str(ability_dict[int(choice)])] < max_score:
-                    abilities[str(ability_dict[int(choice)])] += 1
-                    points -= cost
-                    new_game_ability_scores(mode, points, abilities)
+        inserts = "INSERT INTO player (name, ability_str, ability_dex, ability_con, ability_wis, ability_int," \
+                  "ability_cha)"
+        values = "('" + name + "', " + str(abilities['STR']) + ", " + str(abilities['DEX']) + ", " +\
+                 str(abilities['CON']) + ", " + str(abilities['WIS']) + ", " + str(abilities['INT']) + ", " +\
+                 str(abilities['CHA']) + ");"
+        cursor.execute(inserts + " VALUES " + values)
+
+    # Test that provided value is an integer
+    try:
+        if int(choice) < len(abilities):
+            # Add points
+            if mode == "add":
+                if points >= modifier_dict[int(choice)]:
+                    if abilities[str(ability_dict[int(choice)])] < max_score:
+                        abilities[str(ability_dict[int(choice)])] += 1
+                        points -= modifier_dict[int(choice)]
+                        new_game_ability_scores(name, mode, points, abilities)
+                    else:
+                        print("\n! - Ability score can't exceed " + str(max_score))
+                        new_game_ability_scores(name, mode, points, abilities)
                 else:
-                    print("\n! - Ability score can't exceed " + str(max_score))
-                    new_game_ability_scores(mode, points, abilities)
+                    print("\n! - Not enough points remaining to be allocated")
+                    new_game_ability_scores(name, mode, points, abilities)
+            # Remove points
+            elif mode == "subtract":
+                if abilities[str(ability_dict[int(choice)])] > min_score:
+                    abilities[str(ability_dict[int(choice)])] -= 1
+                    points += modifier_dict[int(choice)]
+                    new_game_ability_scores(name, mode, points, abilities)
+                else:
+                    print("\n! - Ability score can't be lower than " + str(min_score))
+                    new_game_ability_scores(name, mode, points, abilities)
             else:
-                print("\n! - No points remaining to be allocated")
-                new_game_ability_scores(mode, points, abilities)
-        # Remove points
-        elif mode == "subtract":
-            if abilities[str(ability_dict[int(choice)])] > min_score:
-                abilities[str(ability_dict[int(choice)])] -= 1
-                points += cost
-                new_game_ability_scores(mode, points, abilities)
-            else:
-                print("\n! - Ability score can't be lower than " + str(min_score))
-                new_game_ability_scores(mode, points, abilities)
+                new_game_ability_scores(name, "add", points, abilities)
+
+        # A value outside of the ability score range was provided
         else:
-            new_game_ability_scores("add", points, abilities)
-    # Finished allocating points
-    else:
+            print("\n! - Invalid choice")
+            new_game_ability_scores(name, mode, points, abilities)
+    except ValueError:
         print("\n! - Invalid choice")
-        new_game_ability_scores(mode, points, abilities)
+        new_game_ability_scores(name, mode, points, abilities)
 
 
 def new_game_race():
@@ -141,8 +160,9 @@ def new_game_info():
     player_race = new_game_race()
     player_class = new_game_class()
     player_alignment = new_game_alignment()
-    player_ability_scores = new_game_ability_scores("add", ability_points, ability_scores)
+    new_game_ability_scores(player_name, "add", ability_points, ability_scores)
 
+    # TODO: Move confirmation to a separate function
     # Confirm entries
     print("\nName: " + player_name)
     print("Race: " + player_race)
@@ -154,8 +174,14 @@ def new_game_info():
     if confirm == "n" or confirm == "no":
         new_game_info()
     else:
-        cursor.execute("INSERT INTO player (name, race, class, alignment, level) VALUES ('" + player_name + "', '" +
-                       player_race + "', '" + player_class + "', '" + player_alignment + "', 1);")
+        # Build the inserts
+        inserts = "INSERT INTO player (name, race, class, alignment, level)"
+
+        # Build the values
+        values = "('" + player_name + "', '" + player_race + "', '" + player_class + "', '" + player_alignment +\
+                 "', 1);"
+
+        cursor.execute(inserts + " VALUES " + values)
         cursor.execute("COMMIT;")
 
 
@@ -165,18 +191,19 @@ def new_game():
     if cursor.fetchone():
         cursor.execute("DROP TABLE player;")
         cursor.execute("COMMIT;")
+
     cursor.execute("CREATE TABLE IF NOT EXISTS player "
                    "(name VARCHAR(30) NOT NULL PRIMARY KEY,"
                    "race VARCHAR(30) NOT NULL,"
                    "class VARCHAR(30) NOT NULL,"
                    "alignment VARCHAR(30) NOT NULL,"
                    "level INT(2) UNSIGNED NOT NULL,"
-                   "strength INT(2) UNSIGNED,"
-                   "dexterity INT(2) UNSIGNED,"
-                   "constitution INT(2) UNSIGNED,"
-                   "wisdom INT(2) UNSIGNED,"
-                   "intelligence INT(2) UNSIGNED,"
-                   "charisma INT(2) UNSIGNED,"
+                   "ability_str INT(2) UNSIGNED,"
+                   "ability_dex INT(2) UNSIGNED,"
+                   "ability_con INT(2) UNSIGNED,"
+                   "ability_wis INT(2) UNSIGNED,"
+                   "ability_int INT(2) UNSIGNED,"
+                   "ability_cha INT(2) UNSIGNED,"
                    "gold INT(2));")
     new_game_info()
 
