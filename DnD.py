@@ -10,6 +10,14 @@ from collections import OrderedDict
 
 db_conn = pymysql.connect(user='root', password='password', database='dnd')
 cursor = db_conn.cursor()
+ability_points = 22
+ability_scores = OrderedDict()
+ability_scores['STR'] = 10
+ability_scores['DEX'] = 10
+ability_scores['CON'] = 10
+ability_scores['WIS'] = 10
+ability_scores['INT'] = 10
+ability_scores['CHA'] = 10
 
 
 def new_game_ability_scores(name, mode, points, abilities):
@@ -47,48 +55,44 @@ def new_game_ability_scores(name, mode, points, abilities):
 
     # Insert the ability scores
     elif choice == "done":
-        inserts = "INSERT INTO player (name, ability_str, ability_dex, ability_con, ability_wis, ability_int," \
-                  "ability_cha)"
-        values = "('" + name + "', " + str(abilities['STR']) + ", " + str(abilities['DEX']) + ", " +\
-                 str(abilities['CON']) + ", " + str(abilities['WIS']) + ", " + str(abilities['INT']) + ", " +\
-                 str(abilities['CHA']) + ");"
-        cursor.execute(inserts + " VALUES " + values)
+        return
 
     # Test that provided value is an integer
-    try:
-        if int(choice) < len(abilities):
-            # Add points
-            if mode == "add":
-                if points >= modifier_dict[int(choice)]:
-                    if abilities[str(ability_dict[int(choice)])] < max_score:
-                        abilities[str(ability_dict[int(choice)])] += 1
-                        points -= modifier_dict[int(choice)]
+    else:
+        try:
+            if int(choice) < len(abilities):
+                # Add points
+                if mode == "add":
+                    if points >= modifier_dict[int(choice)]:
+                        if abilities[str(ability_dict[int(choice)])] < max_score:
+                            abilities[str(ability_dict[int(choice)])] += 1
+                            points -= modifier_dict[int(choice)]
+                            new_game_ability_scores(name, mode, points, abilities)
+                        else:
+                            print("\n! - Ability score can't exceed " + str(max_score))
+                            new_game_ability_scores(name, mode, points, abilities)
+                    else:
+                        print("\n! - Not enough points remaining to be allocated")
+                        new_game_ability_scores(name, mode, points, abilities)
+                # Remove points
+                elif mode == "subtract":
+                    if abilities[str(ability_dict[int(choice)])] > min_score:
+                        abilities[str(ability_dict[int(choice)])] -= 1
+                        points += modifier_dict[int(choice)]
                         new_game_ability_scores(name, mode, points, abilities)
                     else:
-                        print("\n! - Ability score can't exceed " + str(max_score))
+                        print("\n! - Ability score can't be lower than " + str(min_score))
                         new_game_ability_scores(name, mode, points, abilities)
                 else:
-                    print("\n! - Not enough points remaining to be allocated")
-                    new_game_ability_scores(name, mode, points, abilities)
-            # Remove points
-            elif mode == "subtract":
-                if abilities[str(ability_dict[int(choice)])] > min_score:
-                    abilities[str(ability_dict[int(choice)])] -= 1
-                    points += modifier_dict[int(choice)]
-                    new_game_ability_scores(name, mode, points, abilities)
-                else:
-                    print("\n! - Ability score can't be lower than " + str(min_score))
-                    new_game_ability_scores(name, mode, points, abilities)
-            else:
-                new_game_ability_scores(name, "add", points, abilities)
+                    new_game_ability_scores(name, "add", points, abilities)
 
-        # A value outside of the ability score range was provided
-        else:
+            # A value outside of the ability score range was provided
+            else:
+                print("\n! - Invalid choice")
+                new_game_ability_scores(name, mode, points, abilities)
+        except ValueError:
             print("\n! - Invalid choice")
             new_game_ability_scores(name, mode, points, abilities)
-    except ValueError:
-        print("\n! - Invalid choice")
-        new_game_ability_scores(name, mode, points, abilities)
 
 
 def new_game_race():
@@ -146,14 +150,7 @@ def new_game_alignment():
 
 
 def new_game_info():
-    ability_points = 22
-    ability_scores = OrderedDict()
-    ability_scores['STR'] = 10
-    ability_scores['DEX'] = 10
-    ability_scores['CON'] = 10
-    ability_scores['WIS'] = 10
-    ability_scores['INT'] = 10
-    ability_scores['CHA'] = 10
+    starting_gold = 1000
 
     # Create the character
     player_name = input("Choose your name: ")
@@ -175,11 +172,14 @@ def new_game_info():
         new_game_info()
     else:
         # Build the inserts
-        inserts = "INSERT INTO player (name, race, class, alignment, level)"
+        inserts = "INSERT INTO player (name, race, class, alignment, level, ability_str, ability_dex, ability_con, " +\
+                  "ability_wis, ability_int, ability_cha, gold)"
 
         # Build the values
         values = "('" + player_name + "', '" + player_race + "', '" + player_class + "', '" + player_alignment +\
-                 "', 1);"
+                 "', 1, " + str(ability_scores['STR']) + ", " + str(ability_scores['DEX']) + ", " +\
+                 str(ability_scores['CON']) + ", " + str(ability_scores['WIS']) + ", " +\
+                 str(ability_scores['INT']) + ", " + str(ability_scores['CHA']) + ", " + str(starting_gold) + ");"
 
         cursor.execute(inserts + " VALUES " + values)
         cursor.execute("COMMIT;")
@@ -204,7 +204,7 @@ def new_game():
                    "ability_wis INT(2) UNSIGNED,"
                    "ability_int INT(2) UNSIGNED,"
                    "ability_cha INT(2) UNSIGNED,"
-                   "gold INT(2));")
+                   "gold INT(2) UNSIGNED);")
     new_game_info()
 
 
