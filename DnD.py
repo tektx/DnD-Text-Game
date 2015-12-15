@@ -173,13 +173,14 @@ def new_game_info():
     else:
         # Build the inserts
         inserts = "INSERT INTO player (name, race, class, alignment, level, ability_str, ability_dex, ability_con, " +\
-                  "ability_wis, ability_int, ability_cha, gold)"
+                  "ability_wis, ability_int, ability_cha, gold, pos_x, pos_y)"
 
         # Build the values
         values = "('" + player_name + "', '" + player_race + "', '" + player_class + "', '" + player_alignment +\
                  "', 1, " + str(ability_scores['STR']) + ", " + str(ability_scores['DEX']) + ", " +\
                  str(ability_scores['CON']) + ", " + str(ability_scores['WIS']) + ", " +\
-                 str(ability_scores['INT']) + ", " + str(ability_scores['CHA']) + ", " + str(starting_gold) + ");"
+                 str(ability_scores['INT']) + ", " + str(ability_scores['CHA']) + ", " + str(starting_gold) + ", " +\
+                 "0, 0);"
 
         cursor.execute(inserts + " VALUES " + values)
         cursor.execute("COMMIT;")
@@ -204,17 +205,29 @@ def new_game():
                    "ability_wis INT(2) UNSIGNED,"
                    "ability_int INT(2) UNSIGNED,"
                    "ability_cha INT(2) UNSIGNED,"
-                   "gold INT(2) UNSIGNED);")
+                   "gold INT(2) UNSIGNED,"
+                   "pos_x INT(3) NOT NULL,"
+                   "pos_y INT(3) NOT NULL);")
     new_game_info()
+
+
+# TODO: Pass player_name so position can be updated
+class MainGame:
+    def spawn(self):
+        cursor.execute("UPDATE player pos_x = 0, pos_y = 0 WHERE name = '" + player_name + "';")
 
 
 def show_menu():
     print("Choose an option")
     choice = input("1) Continue\n2) Start new game\n3) Options\n? ")
-    if choice == "2":
+    if choice == "1":
+        game = MainGame()
+        game.spawn()
+    elif choice == "2":
         confirm = input("A save already exists. Are you sure? Type 'yes' to confirm\n? ")
         if confirm == "yes":
             new_game()
+            show_menu()
         else:
             show_menu()
     else:
